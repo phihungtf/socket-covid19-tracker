@@ -1354,9 +1354,9 @@
   "2021-12-12": [
     {
       "country": "World",
-      "cases": 269993520,
-      "deaths": 5317942,
-      "recovered": 242728840
+      "cases": 270011377,
+      "deaths": 5318327,
+      "recovered": 242797854
     },
     {
       "country": "USA",
@@ -1404,7 +1404,7 @@
       "country": "Germany",
       "cases": 6501279,
       "deaths": 106208,
-      "recovered": 5368300
+      "recovered": 5395300
     },
     {
       "country": "Iran",
@@ -1456,9 +1456,9 @@
     },
     {
       "country": "Ukraine",
-      "cases": 3553817,
-      "deaths": 90789,
-      "recovered": 3184287
+      "cases": 3559092,
+      "deaths": 91027,
+      "recovered": 3195913
     },
     {
       "country": "South Africa",
@@ -1486,9 +1486,9 @@
     },
     {
       "country": "Czechia",
-      "cases": 2325181,
-      "deaths": 34377,
-      "recovered": 2008647
+      "cases": 2334289,
+      "deaths": 34451,
+      "recovered": 2033057
     },
     {
       "country": "Peru",
@@ -1534,9 +1534,9 @@
     },
     {
       "country": "Japan",
-      "cases": 1728548,
-      "deaths": 18372,
-      "recovered": 1709270
+      "cases": 1728689,
+      "deaths": 18373,
+      "recovered": 1709386
     },
     {
       "country": "Bangladesh",
@@ -1613,7 +1613,7 @@
     {
       "country": "Kazakhstan",
       "cases": 979484,
-      "deaths": 12837,
+      "deaths": 12852,
       "recovered": 948214
     },
     {
@@ -1630,9 +1630,9 @@
     },
     {
       "country": "Georgia",
-      "cases": 886364,
-      "deaths": 12695,
-      "recovered": 827676
+      "cases": 889286,
+      "deaths": 12731,
+      "recovered": 832675
     },
     {
       "country": "Nepal",
@@ -1840,9 +1840,9 @@
     },
     {
       "country": "Armenia",
-      "cases": 342405,
-      "deaths": 7788,
-      "recovered": 324834
+      "cases": 342538,
+      "deaths": 7802,
+      "recovered": 325394
     },
     {
       "country": "Norway",
@@ -1948,15 +1948,15 @@
     },
     {
       "country": "Uzbekistan",
-      "cases": 195524,
-      "deaths": 1434,
-      "recovered": 192260
+      "cases": 195747,
+      "deaths": 1436,
+      "recovered": 192461
     },
     {
       "country": "Kyrgyzstan",
-      "cases": 183931,
-      "deaths": 2768,
-      "recovered": 178962
+      "cases": 183965,
+      "deaths": 2770,
+      "recovered": 179009
     },
     {
       "country": "Zimbabwe",
@@ -2008,9 +2008,9 @@
     },
     {
       "country": "Cambodia",
-      "cases": 120343,
-      "deaths": 2982,
-      "recovered": 116695
+      "cases": 120355,
+      "deaths": 2985,
+      "recovered": 116708
     },
     {
       "country": "El Salvador",
@@ -2332,9 +2332,9 @@
     },
     {
       "country": "Taiwan",
-      "cases": 16731,
+      "cases": 16737,
       "deaths": 848,
-      "recovered": 15681
+      "recovered": 15684
     },
     {
       "country": "Aruba",
@@ -2398,9 +2398,9 @@
     },
     {
       "country": "New Caledonia",
-      "cases": 12376,
+      "cases": 12379,
       "deaths": 280,
-      "recovered": 11882
+      "recovered": 11921
     },
     {
       "country": "CAR",

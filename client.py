@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import messagebox
 from tkinter import ttk
 from tkinter import *
+from tkinter import font
 from tkinter.ttk import *
 from typing import Sized
 from PIL import Image, ImageTk
@@ -21,122 +22,101 @@ LOGIN = "Login"
 LOGOUT = "Logout"
 SEARCH = "Search"
 
+FONT = ("Tahoma", 13)
+FONT_BOLD = ("Tahoma", 13, "bold")
+
 #GLOBAL socket initialize
-client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-client.connect(ADDR)
+# client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+# client.connect(ADDR)
 
-# def logIn(client):
-#     try:
-#         msg = LOGIN
-#         client.sendall(msg.encode(FORMAT))
+class LinkLabel(tk.Label):
+    def __init__(self, master, text, fg, font, command):
+        super().__init__(master, text=text, fg=fg, font=font, cursor="hand2")
+        self.linkFont = tk.font.Font(family=font[0], size=font[1], underline=True)
+        self.normalFont = tk.font.Font(family=font[0], size=font[1])
+        self.bind("<Enter>", lambda e: self.configure(font=self.linkFont))
+        self.bind("<Leave>", lambda e: self.configure(font=self.normalFont))
+        self.bind("<Button-1>", lambda e: command())
 
-#         username = input("Enter username: ")
-#         client.sendall(username.encode(FORMAT))
-#         client.recv(HEADER)
+class SignInFrame():
+    def __init__(self, master, signUpCommand):
+        self.frame = tk.Frame(master)
+        # self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-#         password = input("Enter password: ")
-#         client.sendall(password.encode(FORMAT))
+        tk.Label(self.frame, text="SIGN IN", font=FONT_BOLD).place(x=105, y=10)
+        tk.Label(self.frame, text="Username", font=FONT).place(x=10, y=50)
 
-#         accepted = client.recv(HEADER).decode(FORMAT)
-#         if accepted == "1":
-#             return home(client, username)
-#         elif accepted == "2":
-#             print("invalid username or password")
-#         elif accepted == "0":
-#             print("User already logged in")
+        self.usernameEntry = tk.Entry(self.frame)
+        self.usernameEntry.place(x=12, y=80, width=270)
 
-#     except:
-#         print("Error: Server is not responding")    
+        tk.Label(self.frame, text="Password", font=FONT).place(x=10, y=110)
 
-   
+        self.passwordEntry = tk.Entry(self.frame, show="•")
+        self.passwordEntry.place(x=12, y=140, width=270)
 
+        self.signInButton = tk.Button(self.frame, text="Sign In", font=FONT, relief="ridge")
+        self.signInButton.place(x=12, y=180, width=270)
 
-  
+        tk.Label(self.frame, text="Don't have an account?", font=("Tahoma", 10)).place(x=45, y=225)
+        self.signInButton = LinkLabel(self.frame, text="Sign Up!", fg="blue", font=("Tahoma", 10), command=signUpCommand)
+        self.signInButton.place(x=185, y=225)
 
-# def sendList(client, list):
+class SignUpFrame():
+    def __init__(self, master, signInCommand):
+        self.frame = tk.Frame(master)
+        # self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-#     for item in list:
-#         client.sendall(item.encode(FORMAT))
-#         #wait response
-#         client.recv(HEADER)
+        tk.Label(self.frame, text="SIGN UP", font=FONT_BOLD).place(x=105, y=10)
+        tk.Label(self.frame, text="Username", font=FONT).place(x=10, y=50)
 
-#     msg = "end"
-#     client.send(msg.encode(FORMAT))
+        self.usernameEntry = tk.Entry(self.frame)
+        self.usernameEntry.place(x=12, y=80, width=270)
 
+        tk.Label(self.frame, text="Password", font=FONT).place(x=10, y=110)
 
+        self.passwordEntry = tk.Entry(self.frame, show="•")
+        self.passwordEntry.place(x=12, y=140, width=270)
 
-                
+        tk.Label(self.frame, text="Confirm Password", font=FONT).place(x=10, y=170)
 
-# def startClient(client):
-#     temp = -1
-#     while(temp != 1 or temp != 2 or temp != 3):
-#         os.system("cls")
-#         print("<======MENU======>")
-#         print("1.Log In")
-#         print("2.Sign Up")
-#         print("3.Exit")
-#         choice = input("Enter your choice: ")
-#         if choice == "1":
-#             logIn(client)
-#         elif choice == "2":
-#             signUp(client)
-#         elif choice == "3":
-#             print(client.getsockname() + " finished")
-#             break
-#         else:
-#             print("Your choice incorrect. Please try again")
-#             os.system("pause")
-#         temp = int(choice)
-#     client.close()
-    
+        self.confirmPasswordEntry = tk.Entry(self.frame, show="•")
+        self.confirmPasswordEntry.place(x=12, y=200, width=270)
 
-# def home(client, username):
-#     os.system("cls")
-#     print("<=====MENU=====>")
-#     print("1.Search")
-#     print("2.Log out")
-#     choice = input("Enter your choice:")
-#     if(choice == "1"):
-#         Search(client, username)
-#     elif(choice == "2"):
-#         return logOut(client, username)
+        self.signUpButton = tk.Button(self.frame, text="Sign Up", font=FONT, relief="ridge")
+        self.signUpButton.place(x=12, y=240, width=270)
 
+        tk.Label(self.frame, text="Already have an account?", font=("Tahoma", 10)).place(x=35, y=295)
+        self.signUpButton = LinkLabel(self.frame, text="Sign In!", fg="blue", font=("Tahoma", 10), command=signInCommand)
+        self.signUpButton.place(x=195, y=295)
 
-class App_Client(tk.Tk):
-    def __init__(self, *args, **kwargs):
-        tk.Tk.__init__(self, *args, **kwargs)
+    def signIn(self):
+        pass
 
-        self.title("Covid Information")
-        self.geometry("1000x600")
-        self.protocol("WM_DELETE_WINDOW", self.on_closing)
-        self.resizable(width=False, height=False)
+class ClientApp(tk.Tk):
+    def __init__(self):
+        self.gui = tk.Tk()
+        self.gui.geometry('300x340')
+        self.gui.title('Covid-19 Tracker Server')
+        self.gui.resizable(width=False, height=False)
+        self.gui.option_add("*Font", FONT)
 
-        container = tk.Frame(self)
-        container.place(x = 0, y = 0)
+        self.frames = {
+            "SignUp": SignUpFrame(self.gui, lambda: self.showFrame("SignIn")),
+            "SignIn": SignInFrame(self.gui, lambda: self.showFrame("SignUp"))
+        }
 
-        # container.grid_rowconfigure(0, weight=1)
-        # container.grid_columnconfigure(0, weight=1)
+        self.currentFrame = "SignIn"
+        self.showFrame(self.currentFrame)
 
-        self.frames = {}
-        for F in (Background_Client, Home_Client):
-            frame = F(container, self)
-
-            self.frames[F] = frame 
-
-            frame.grid(row=0, column=0, sticky="nsew")
-
-        self.showFrame(Background_Client)
-
-
-    def showFrame(self, container):
+    def showFrame(self, frame):
+        self.frames[self.currentFrame].frame.pack_forget()
+        self.currentFrame = frame
+        self.frames[self.currentFrame].frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        frame = self.frames[container]
-        if container == Home_Client:
-            self.geometry("500x500")
-
-        else:
-            self.geometry("1000x600")
-        frame.tkraise()
+        if self.currentFrame == "SignIn":
+            self.gui.geometry("300x280")
+        elif self.currentFrame == "SignUp":
+            self.gui.geometry("300x340")
         
     def logIn(self,curFrame,client):
         try:
@@ -284,16 +264,11 @@ class Home_Client(tk.Frame):
         except:
             print("Error: Server is not responding")    
 
-app = App_Client()
+def __main__():
+  app = ClientApp()
+  app.gui.mainloop()
 
-
-try:
-    app.mainloop()
-except:
-    print("Error")
-    client.close()
-
-finally:
-    client.close()
+if __name__ == '__main__':
+  __main__()
 
 

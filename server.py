@@ -360,7 +360,36 @@ class TabTracker(ttk.Frame):
                 self.updateData()
                 self.countdownEntries.interval = UPDATE_INTERVAL
                 
-                
+class TabServer(ttk.Frame):
+    def __init__(self, master):
+        ttk.Frame.__init__(self, master)
+
+        tk.Label(self, text="Port:").place(x=10, y=10)
+
+        self.port = tk.IntVar()
+        self.portEntry = tk.Entry(self, textvariable=self.port, width=10)
+        self.portEntry.place(x=60, y=11)
+        self.port.set(PORT)
+
+        self.startButton = tk.Button(self, text="Start Server", relief="ridge")
+        self.startButton.place(x=170, y=10, width=120, height=27)
+
+        tk.Label(self, text="Connected Users").place(x=10, y=50)
+        self.clientTreeview = ttk.Treeview(self, columns=("1", "2"), show="headings")
+        self.clientTreeview.place(x=10, y=80, width=280, height=345)
+        
+        self.clientTreeview.column("1", anchor='w', width=150)
+        self.clientTreeview.column("2", anchor='w', width=120)
+
+        self.clientTreeview.heading("1", text ="Username", anchor='w')
+        self.clientTreeview.heading("2", text ="IP Address", anchor="w")
+
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+
 
 class ServerApp():
     def __init__(self):
@@ -372,17 +401,14 @@ class ServerApp():
 
         self.tabControl = ttk.Notebook(self.gui)
 
-        tabClients = ttk.Frame(self.tabControl)
+        self.tabServer = TabServer(self.tabControl)
         self.tabTracker = TabTracker(self.tabControl)
         tabAbout = ttk.Frame(self.tabControl)
 
-        self.tabControl.add(tabClients, text='Clients')
+        self.tabControl.add(self.tabServer, text='Server')
         self.tabControl.add(self.tabTracker, text='Tracker')
         self.tabControl.add(tabAbout, text='About')
         self.tabControl.pack(expand=1, fill="both")
-
-        tk.Label(tabClients, text="Stats Overview").grid(column=0, row=0, padx=30, pady=30)
-
 
         # self.title("Covid Information")
         # self.geometry("1000x600")
