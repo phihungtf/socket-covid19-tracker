@@ -30,8 +30,7 @@ LOGIN = "LOGIN"
 LOGOUT = "LOGOUT"
 SEARCH = "SEARCH"
 LOGIN_SUCCESS = "LOGIN_SUCCESS"
-LOGIN_NOUSER = "LOGIN_NOUSER"
-LOGIN_WRONGPASS = "LOGIN_WRONGPASS"
+LOGIN_FAILED = "LOGIN_FAILED"
 
 
 COVID_API = "https://coronavirus-19-api.herokuapp.com/countries"
@@ -247,6 +246,47 @@ class Database():
             f.close()
         return data[username]["password"]
 
+    def getAllUsername(self):
+        with open(self.userFn, 'r') as f:
+            data = json.load(f)
+            f.close()
+        return list(data.keys())
+
+    def getUserIpAdress(self, username):
+        with open(self.userFn, 'r') as f:
+            data = json.load(f)
+            f.close()
+        return data[username]["ipaddress"]
+
+    def setUserIpAdress(self, username, ipaddress):
+        with open(self.userFn, 'r+') as f:
+            data = json.load(f)
+            data[username]["ipaddress"] = ipaddress
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.close()
+
+class LoggedInUsers():
+    def __init__(self):
+        self.users = self.load()
+
+    def load(self):
+        self.usernames = db.getAllUsername()
+        users = {}
+        for username in self.usernames:
+            users[username] = {"ipaddress": db.getUserIpAdress(username), "isLoggedIn": False}
+        return users
+
+    def logIn(self, username, ipaddress):
+        self.users[username]["ipaddress"] = ipaddress
+        self.users[username]["isLoggedIn"] = True
+        db.setUserIpAdress(username, ipaddress)
+
+    def logOut(self, username):
+        self.users[username]["isLoggedIn"] = False
+
+    
+
 class Card():
     def __init__(self, master, pos, numberColor, labelColor, labelText):
         self.valueLabel = tk.Label(master, text="000,000,000", background=numberColor[0], foreground=numberColor[1], justify="center", font=FONT_BOLD)
@@ -401,60 +441,86 @@ class TabServer(ttk.Frame):
         self.clientTreeview.heading("1", text ="Username", anchor='w')
         self.clientTreeview.heading("2", text ="IP Address", anchor="w")
 
-        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+
+        self.clientThread = {}
+        self.clientAddress = []
+        self.isStart = False
         
+
+    def start(self):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         
         self.socketThread = threading.Thread(target=self.listen)
         self.socketThread.setDaemon(True)
 
-    def start(self):
         self.socket.bind(('', self.port.get()))
+        self.isStart = True
+        print("Server started on port: " + str(self.socket.getsockname()[1]))
+
         self.socketThread.start()
         self.startButton.config(text="Stop Server", command=self.stop)
         self.portEntry.config(state="disabled")
 
     def stop(self):
+        self.isStart = False
+        for addr in self.clientAddress:
+            self.clientThread[addr].join()
         self.socket.close()
         self.socketThread.join()
         self.startButton.config(text="Start Server", command=self.start)
         self.portEntry.config(state="normal")
 
     def listen(self):
-        print(self.socket)
+        # print(self.socket)
         self.socket.listen()
-        while True:
-            conn, addr = self.socket.accept()
-            clientThread = threading.Thread(target=self.handleClient, args=(conn, addr))
-            clientThread.setDaemon(True)
-            clientThread.start()
-            # self.clientTreeview.insert("", "end", text="", values=(data, addr[0]))
+        while self.isStart:
+            try:
+                conn, addr = self.socket.accept()
+                self.clientAddress.append(f'{addr[0]}:{addr[1]}')
+                print(self.clientAddress[-1] + ' connected')
+                self.clientThread[self.clientAddress[-1]] = threading.Thread(target=self.handleClient, args=(conn, addr))
+                self.clientThread[self.clientAddress[-1]].setDaemon(True)
+                self.clientThread[self.clientAddress[-1]].start()
+            except:
+                print("Server stopped")
 
     def handleClient(self, conn, addr):
         while True:
             data = conn.recv(MAX_BYTES).decode(FORMAT)
-            print(data)
+            if not data:
+                self.clientAddress.remove(f'{addr[0]}:{addr[1]}')
+                conn.close()
+                print(f'{addr[0]}:{addr[1]} disconnected')
+                return
             msg = json.loads(data)
             if msg["type"] == LOGIN:
                 self.clientLogIn(conn, addr, msg["payload"])
         # self.clientTreeview.insert("", "end", text="", values=(data, addr[0]))
-        conn.close()
+        # conn.close()
 
     def clientLogIn(self, conn, addr, payload):
         hasUser = db.hasUser(payload["username"])
         if hasUser:
             dbPassword = db.getPassword(payload["username"])
             if dbPassword == payload["password"]:
-                self.clientTreeview.insert("", "end", text="", values=(payload["username"], addr[0]))
+                users.logIn(payload["username"], addr[0])
+                self.updateTreeview()
                 conn.send(messageCreate(LOGIN_SUCCESS, {"message": "Login Success"}))
             else:
-                conn.send(messageCreate(LOGIN_WRONGPASS, {"message": "Wrong Password"}))
+                conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
         else:
-            conn.send(messageCreate(LOGIN_NOUSER, {"message": "User not found"}))
+            conn.send(messageCreate(LOGIN_FAILED, {"message": "User not found"}))
+
+    def updateTreeview(self):
+        self.clientTreeview.delete(*self.clientTreeview.get_children())
+        for username in users.users:
+            if users.users[username]["isLoggedIn"]:
+                self.clientTreeview.insert("", "end", text="", values=(username, users.users[username]["ipaddress"]))
 
 
 class ServerApp():
@@ -595,9 +661,11 @@ class Home_Server(tk.Frame):
 # sThread.start()
 
 db = Database(DATABASE_FILENAME["user"], DATABASE_FILENAME["covid"])
+users = LoggedInUsers()
 app = ServerApp()
 
 def __main__():
+    print(users.users)
     app.gui.mainloop()
 
 

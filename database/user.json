@@ -1,8 +1,10 @@
 {
-	"hung": {
-		"password": "1"
-	},
-	"hung2": {
-		"password": "2"
-	}
+  "hung": {
+    "password": "1",
+    "ipaddress": "127.0.0.1"
+  },
+  "hung2": {
+    "password": "2",
+    "ipaddress": "127.0.0.1"
+  }
 }
