@@ -1,68 +1,147 @@
+import json
 import socket
 import threading
 import os
 
 import tkinter as tk 
-from tkinter import messagebox
 from tkinter import ttk
-from tkinter import *
-from tkinter import font
-from tkinter.ttk import *
-from typing import Sized
-from PIL import Image, ImageTk
+import tkinter.font
+from tkinter import messagebox
 
 HOST = "127.0.0.1"
 PORT = 55555
-HEADER = 1024
+MAX_BYTES = 1024
 FORMAT = "utf-8"
 ADDR = (HOST, PORT)
 DISCONNECT_MESSAGE = "Disconnect"
-SIGNUP = "Signup"
-LOGIN = "Login"
-LOGOUT = "Logout"
-SEARCH = "Search"
+
+SIGNUP = "SIGNUP"
+LOGIN = "LOGIN"
+LOGOUT = "LOGOUT"
+SEARCH = "SEARCH"
 
 FONT = ("Tahoma", 13)
 FONT_BOLD = ("Tahoma", 13, "bold")
 
 #GLOBAL socket initialize
-# client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# client.connect(ADDR)
+def messageCreate(type, payload):
+    return json.dumps({"type": type, "payload": payload}).encode(FORMAT)
 
 class LinkLabel(tk.Label):
     def __init__(self, master, text, fg, font, command):
         super().__init__(master, text=text, fg=fg, font=font, cursor="hand2")
         self.linkFont = tk.font.Font(family=font[0], size=font[1], underline=True)
         self.normalFont = tk.font.Font(family=font[0], size=font[1])
+        self.command = command
         self.bind("<Enter>", lambda e: self.configure(font=self.linkFont))
         self.bind("<Leave>", lambda e: self.configure(font=self.normalFont))
-        self.bind("<Button-1>", lambda e: command())
+        self.bind("<Button-1>", lambda e: self.command())
 
-class SignInFrame():
+    def disable(self):
+        self.configure(state="disabled")
+        self.unbind("<Enter>")
+        self.unbind("<Leave>")
+        self.unbind("<Button-1>")
+        self.configure(cursor="arrow")
+
+    def enable(self):
+        self.configure(state="normal")
+        self.bind("<Enter>", lambda e: self.configure(font=self.linkFont))
+        self.bind("<Leave>", lambda e: self.configure(font=self.normalFont))
+        self.bind("<Button-1>", lambda e: self.command())
+        self.configure(cursor="hand2")
+
+class LogInFrame():
     def __init__(self, master, signUpCommand):
+        self.isConnected = False
         self.frame = tk.Frame(master)
         # self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        tk.Label(self.frame, text="SIGN IN", font=FONT_BOLD).place(x=105, y=10)
-        tk.Label(self.frame, text="Username", font=FONT).place(x=10, y=50)
+        tk.Label(self.frame, text="Connect to the server").place(x=10, y=10)
+        
+        self.ip = tk.StringVar()
+        self.ipEntry = tk.Entry(self.frame, textvariable=self.ip)
+        self.ipEntry.place(x=12, y=40, width=192)
+        self.ip.set(HOST)
+
+        self.port = tk.IntVar()
+        self.portEntry = tk.Entry(self.frame, textvariable=self.port)
+        self.portEntry.place(x=212, y=40, width=70)
+        self.port.set(PORT)
+
+        self.connectButton = tk.Button(self.frame, text="Connect", relief="ridge", command=self.connect)
+        self.connectButton.place(x=12, y=70, width=270)
+
+        tk.Label(self.frame, text="LOG IN", font=FONT_BOLD).place(x=112, y=115)
+        tk.Label(self.frame, text="Username").place(x=10, y=140)
 
         self.usernameEntry = tk.Entry(self.frame)
-        self.usernameEntry.place(x=12, y=80, width=270)
+        self.usernameEntry.place(x=12, y=170, width=270)
 
-        tk.Label(self.frame, text="Password", font=FONT).place(x=10, y=110)
+        tk.Label(self.frame, text="Password").place(x=10, y=200)
 
         self.passwordEntry = tk.Entry(self.frame, show="•")
-        self.passwordEntry.place(x=12, y=140, width=270)
+        self.passwordEntry.place(x=12, y=230, width=270)
 
-        self.signInButton = tk.Button(self.frame, text="Sign In", font=FONT, relief="ridge")
-        self.signInButton.place(x=12, y=180, width=270)
+        self.logInButton = tk.Button(self.frame, text="Log In", relief="ridge", command=self.logIn)
+        self.logInButton.place(x=12, y=270, width=270)
 
-        tk.Label(self.frame, text="Don't have an account?", font=("Tahoma", 10)).place(x=45, y=225)
-        self.signInButton = LinkLabel(self.frame, text="Sign Up!", fg="blue", font=("Tahoma", 10), command=signUpCommand)
-        self.signInButton.place(x=185, y=225)
+        tk.Label(self.frame, text="Don't have an account?", font=("Tahoma", 10)).place(x=45, y=315)
+        self.signUpButton = LinkLabel(self.frame, text="Sign Up!", fg="blue", font=("Tahoma", 10), command=signUpCommand)
+        self.signUpButton.place(x=185, y=315)
+
+        # self.disableLogIn()
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def connect(self):
+        self.disableConnect()
+        self.enableLogIn()
+        self.isConnected = True
+        self.socket.connect((self.ip.get(), self.port.get()))
+        print(self.socket)
+
+    def disconnect(self):
+        self.isConnected = False
+        self.enableConnect()
+        self.disableLogIn()
+        self.socket.close()
+
+    def logIn(self):
+        username = self.usernameEntry.get()
+        password = self.passwordEntry.get()
+        if username == "" or password == "":
+            messagebox.showerror("Error", "Username or password is empty!")
+            return
+
+        self.socket.send(messageCreate(LOGIN, {"username": username, "password": password}))
+        response = self.socket.recv(MAX_BYTES).decode(FORMAT)
+        messagebox.showinfo("Response", response)
+
+    def disableLogIn(self):
+        self.logInButton.config(state="disabled")
+        self.usernameEntry.config(state="disabled")
+        self.passwordEntry.config(state="disabled")
+        self.signUpButton.disable()
+
+    def enableLogIn(self):
+        self.logInButton.config(state="normal")
+        self.usernameEntry.config(state="normal")
+        self.passwordEntry.config(state="normal")
+        self.signUpButton.enable()
+
+    def disableConnect(self):
+        self.connectButton.config(text="Disconnect", command=self.disconnect)
+        self.ipEntry.config(state="disabled")
+        self.portEntry.config(state="disabled")
+
+    def enableConnect(self):
+        self.connectButton.config(text="Connect", command=self.connect)
+        self.ipEntry.config(state="normal")
+        self.portEntry.config(state="normal")
 
 class SignUpFrame():
-    def __init__(self, master, signInCommand):
+    def __init__(self, master, logInCommand):
         self.frame = tk.Frame(master)
         # self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -86,26 +165,26 @@ class SignUpFrame():
         self.signUpButton.place(x=12, y=240, width=270)
 
         tk.Label(self.frame, text="Already have an account?", font=("Tahoma", 10)).place(x=35, y=295)
-        self.signUpButton = LinkLabel(self.frame, text="Sign In!", fg="blue", font=("Tahoma", 10), command=signInCommand)
-        self.signUpButton.place(x=195, y=295)
+        self.logInButton = LinkLabel(self.frame, text="Log In!", fg="blue", font=("Tahoma", 10), command=logInCommand)
+        self.logInButton.place(x=195, y=295)
 
-    def signIn(self):
+    def signUp(self):
         pass
 
 class ClientApp(tk.Tk):
     def __init__(self):
         self.gui = tk.Tk()
-        self.gui.geometry('300x340')
+        self.gui.geometry('300x350')
         self.gui.title('Covid-19 Tracker Server')
         self.gui.resizable(width=False, height=False)
         self.gui.option_add("*Font", FONT)
 
         self.frames = {
-            "SignUp": SignUpFrame(self.gui, lambda: self.showFrame("SignIn")),
-            "SignIn": SignInFrame(self.gui, lambda: self.showFrame("SignUp"))
+            SIGNUP: SignUpFrame(self.gui, lambda: self.showFrame(LOGIN)),
+            LOGIN: LogInFrame(self.gui, lambda: self.showFrame(SIGNUP))
         }
 
-        self.currentFrame = "SignIn"
+        self.currentFrame = LOGIN
         self.showFrame(self.currentFrame)
 
     def showFrame(self, frame):
@@ -113,10 +192,10 @@ class ClientApp(tk.Tk):
         self.currentFrame = frame
         self.frames[self.currentFrame].frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
         
-        if self.currentFrame == "SignIn":
-            self.gui.geometry("300x280")
-        elif self.currentFrame == "SignUp":
-            self.gui.geometry("300x340")
+        # if self.currentFrame == LOGIN:
+        #     self.gui.geometry("300x280")
+        # elif self.currentFrame == SIGNUP:
+        #     self.gui.geometry("300x340")
         
     def logIn(self,curFrame,client):
         try:

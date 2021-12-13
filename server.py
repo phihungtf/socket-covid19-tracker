@@ -3,6 +3,7 @@ import threading
 import json
 import hashlib
 from tkinter import font
+from tkinter.constants import SW
 import requests
 import schedule
 import time
@@ -17,16 +18,21 @@ from tkinter import ttk
 # from typing import Sized
 # from PIL import Image, ImageTk
 
-HOST = "127.0.0.1"
+# HOST = "127.0.0.1"
 PORT = 55555
-HEADER = 1024
+MAX_BYTES = 1024
 FORMAT = "utf-8"
-ADDR = (HOST, PORT)
+# ADDR = (HOST, PORT)
 DISCONNECT_MESSAGE = "Disconnect"
-SIGNUP = "Signup"
-LOGIN = "Login"
-LOGOUT = "Logout"
-SEARCH = "Search"
+
+SIGNUP = "SIGNUP"
+LOGIN = "LOGIN"
+LOGOUT = "LOGOUT"
+SEARCH = "SEARCH"
+LOGIN_SUCCESS = "LOGIN_SUCCESS"
+LOGIN_NOUSER = "LOGIN_NOUSER"
+LOGIN_WRONGPASS = "LOGIN_WRONGPASS"
+
 
 COVID_API = "https://coronavirus-19-api.herokuapp.com/countries"
 
@@ -41,10 +47,6 @@ DATABASE_FILENAME = {
 }
 
 locale.setlocale(locale.LC_ALL, 'en_US')
-
-s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-s.bind(ADDR)
-s.listen()
 
 LiveAccount = []
 
@@ -76,10 +78,10 @@ def checkClientSignUp(username):
 
 
 def clientSignUp(conn):
-    username = conn.recv(HEADER).decode(FORMAT)
+    username = conn.recv(MAX_BYTES).decode(FORMAT)
     conn.sendall(username.encode(FORMAT))
 
-    password = conn.recv(HEADER).decode(FORMAT)
+    password = conn.recv(MAX_BYTES).decode(FORMAT)
 
     username = username.strip()
 
@@ -115,10 +117,10 @@ def checkClientLogin(username, password):
 
 
 def clientLogIn(conn):
-    username = conn.recv(HEADER).decode(FORMAT)
+    username = conn.recv(MAX_BYTES).decode(FORMAT)
     conn.sendall(username.encode(FORMAT))
 
-    password = conn.recv(HEADER).decode(FORMAT)
+    password = conn.recv(MAX_BYTES).decode(FORMAT)
 
     accepted = checkClientLogin(username, password)
     if accepted == 1:
@@ -134,7 +136,7 @@ def clientSearch(conn):
         data = json.load(f)
         f.close()
 
-    country = conn.recv(HEADER).decode(FORMAT)
+    country = conn.recv(MAX_BYTES).decode(FORMAT)
     info = []
     key = datetime.datetime.now().strftime("%Y-%m-%d")
     for i in data[key]:
@@ -148,7 +150,7 @@ def clientSearch(conn):
 
 
 def clientLogOut(conn):
-    username = conn.recv(HEADER).decode(FORMAT)
+    username = conn.recv(MAX_BYTES).decode(FORMAT)
     for i in LiveAccount:
         if i == username:
             LiveAccount.remove(i)
@@ -159,7 +161,7 @@ def handle_client(conn, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
 
     while True:
-        msg = conn.recv(HEADER).decode(FORMAT)
+        msg = conn.recv(MAX_BYTES).decode(FORMAT)
 
         if(msg == LOGIN):
             clientLogIn(conn)
@@ -206,6 +208,9 @@ def formatNumber(number):
     if number == None: return "N/A"
     return locale.format_string("%d", int(number), grouping=True)
 
+def messageCreate(type, payload):
+    return json.dumps({"type": type, "payload": payload}).encode(FORMAT)
+
 class Database():
     def __init__(self, userFn, covidFn):
         self.userFn = userFn
@@ -229,6 +234,18 @@ class Database():
             data = json.load(f)
             f.close()
         return [country["country"] for country in data[date]]
+
+    def hasUser(self, username):
+        with open(self.userFn, 'r') as f:
+            data = json.load(f)
+            f.close()
+        return username in data
+
+    def getPassword(self, username):
+        with open(self.userFn, 'r') as f:
+            data = json.load(f)
+            f.close()
+        return data[username]["password"]
 
 class Card():
     def __init__(self, master, pos, numberColor, labelColor, labelText):
@@ -367,12 +384,12 @@ class TabServer(ttk.Frame):
         tk.Label(self, text="Port:").place(x=10, y=10)
 
         self.port = tk.IntVar()
-        self.portEntry = tk.Entry(self, textvariable=self.port, width=10)
-        self.portEntry.place(x=60, y=11)
+        self.portEntry = tk.Entry(self, textvariable=self.port)
+        self.portEntry.place(x=60, y=11, width=90)
         self.port.set(PORT)
 
-        self.startButton = tk.Button(self, text="Start Server", relief="ridge")
-        self.startButton.place(x=170, y=10, width=120, height=27)
+        self.startButton = tk.Button(self, text="Start Server", relief="ridge", command=self.start)
+        self.startButton.place(x=160, y=10, width=130, height=27)
 
         tk.Label(self, text="Connected Users").place(x=10, y=50)
         self.clientTreeview = ttk.Treeview(self, columns=("1", "2"), show="headings")
@@ -384,11 +401,60 @@ class TabServer(ttk.Frame):
         self.clientTreeview.heading("1", text ="Username", anchor='w')
         self.clientTreeview.heading("2", text ="IP Address", anchor="w")
 
-        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-        self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        # self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
+        
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+        self.socketThread = threading.Thread(target=self.listen)
+        self.socketThread.setDaemon(True)
+
+    def start(self):
+        self.socket.bind(('', self.port.get()))
+        self.socketThread.start()
+        self.startButton.config(text="Stop Server", command=self.stop)
+        self.portEntry.config(state="disabled")
+
+    def stop(self):
+        self.socket.close()
+        self.socketThread.join()
+        self.startButton.config(text="Start Server", command=self.start)
+        self.portEntry.config(state="normal")
+
+    def listen(self):
+        print(self.socket)
+        self.socket.listen()
+        while True:
+            conn, addr = self.socket.accept()
+            clientThread = threading.Thread(target=self.handleClient, args=(conn, addr))
+            clientThread.setDaemon(True)
+            clientThread.start()
+            # self.clientTreeview.insert("", "end", text="", values=(data, addr[0]))
+
+    def handleClient(self, conn, addr):
+        while True:
+            data = conn.recv(MAX_BYTES).decode(FORMAT)
+            print(data)
+            msg = json.loads(data)
+            if msg["type"] == LOGIN:
+                self.clientLogIn(conn, addr, msg["payload"])
+        # self.clientTreeview.insert("", "end", text="", values=(data, addr[0]))
+        conn.close()
+
+    def clientLogIn(self, conn, addr, payload):
+        hasUser = db.hasUser(payload["username"])
+        if hasUser:
+            dbPassword = db.getPassword(payload["username"])
+            if dbPassword == payload["password"]:
+                self.clientTreeview.insert("", "end", text="", values=(payload["username"], addr[0]))
+                conn.send(messageCreate(LOGIN_SUCCESS, {"message": "Login Success"}))
+            else:
+                conn.send(messageCreate(LOGIN_WRONGPASS, {"message": "Wrong Password"}))
+        else:
+            conn.send(messageCreate(LOGIN_NOUSER, {"message": "User not found"}))
 
 
 class ServerApp():
