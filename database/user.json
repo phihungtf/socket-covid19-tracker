@@ -6,5 +6,9 @@
   "hung2": {
     "password": "2",
     "ipaddress": "127.0.0.1"
+  },
+  "hung3": {
+    "password": "3",
+    "ipaddress": "127.0.0.1"
   }
 }

@@ -28,9 +28,13 @@ DISCONNECT_MESSAGE = "Disconnect"
 SIGNUP = "SIGNUP"
 LOGIN = "LOGIN"
 LOGOUT = "LOGOUT"
-SEARCH = "SEARCH"
+GETDATE = "GETDATE"
+GETCOUNTRY = "GETCOUNTRY"
+GETCOVIDDATA = "GETCOVIDDATA"
 LOGIN_SUCCESS = "LOGIN_SUCCESS"
 LOGIN_FAILED = "LOGIN_FAILED"
+SIGNUP_SUCCESS = "SIGNUP_SUCCESS"
+SIGNUP_FAILED = "SIGNUP_FAILED"
 
 
 COVID_API = "https://coronavirus-19-api.herokuapp.com/countries"
@@ -266,7 +270,15 @@ class Database():
             json.dump(data, f, indent=2)
             f.close()
 
-class LoggedInUsers():
+    def addNewUser(self, username, password, ipaddress):
+        with open(self.userFn, 'r+') as f:
+            data = json.load(f)
+            data[username] = {"password": password, "ipaddress": ipaddress}
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.close()
+
+class Users():
     def __init__(self):
         self.users = self.load()
 
@@ -284,6 +296,10 @@ class LoggedInUsers():
 
     def logOut(self, username):
         self.users[username]["isLoggedIn"] = False
+
+    def signUp(self, username, password, ipaddress):
+        self.users[username] = {"ipaddress": ipaddress, "isLoggedIn": True}
+        db.addNewUser(username, password, ipaddress)
 
     
 
@@ -447,6 +463,7 @@ class TabServer(ttk.Frame):
         self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
         self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
 
+        self.client = {}
         self.clientThread = {}
         self.clientAddress = []
         self.isStart = False
@@ -467,11 +484,9 @@ class TabServer(ttk.Frame):
         self.portEntry.config(state="disabled")
 
     def stop(self):
-        self.isStart = False
-        for addr in self.clientAddress:
-            self.clientThread[addr].join()
+        for client in self.client:
+            self.client[client].close()
         self.socket.close()
-        self.socketThread.join()
         self.startButton.config(text="Start Server", command=self.start)
         self.portEntry.config(state="normal")
 
@@ -482,26 +497,34 @@ class TabServer(ttk.Frame):
             try:
                 conn, addr = self.socket.accept()
                 self.clientAddress.append(f'{addr[0]}:{addr[1]}')
+                self.client[self.clientAddress[-1]] = conn
                 print(self.clientAddress[-1] + ' connected')
                 self.clientThread[self.clientAddress[-1]] = threading.Thread(target=self.handleClient, args=(conn, addr))
                 self.clientThread[self.clientAddress[-1]].setDaemon(True)
                 self.clientThread[self.clientAddress[-1]].start()
             except:
                 print("Server stopped")
+                return
 
     def handleClient(self, conn, addr):
         while True:
-            data = conn.recv(MAX_BYTES).decode(FORMAT)
-            if not data:
-                self.clientAddress.remove(f'{addr[0]}:{addr[1]}')
-                conn.close()
+            try:
+                data = conn.recv(MAX_BYTES).decode(FORMAT)
+                if not data:
+                    self.clientAddress.remove(f'{addr[0]}:{addr[1]}')
+                    conn.close()
+                    print(f'{addr[0]}:{addr[1]} disconnected')
+                    return
+                msg = json.loads(data)
+                if msg["type"] == LOGIN:
+                    self.clientLogIn(conn, addr, msg["payload"])
+                elif msg["type"] == SIGNUP:
+                    self.clientSignUp(conn, addr, msg["payload"])
+                elif msg["type"] == GETDATE:
+                    self.clientGetDate(conn)
+            except:
                 print(f'{addr[0]}:{addr[1]} disconnected')
                 return
-            msg = json.loads(data)
-            if msg["type"] == LOGIN:
-                self.clientLogIn(conn, addr, msg["payload"])
-        # self.clientTreeview.insert("", "end", text="", values=(data, addr[0]))
-        # conn.close()
 
     def clientLogIn(self, conn, addr, payload):
         hasUser = db.hasUser(payload["username"])
@@ -515,6 +538,23 @@ class TabServer(ttk.Frame):
                 conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
         else:
             conn.send(messageCreate(LOGIN_FAILED, {"message": "User not found"}))
+
+    def clientSignUp(self, conn, addr, payload):
+        hasUser = db.hasUser(payload["username"])
+        if not hasUser:
+            # dbPassword = db.getPassword(payload["username"])
+            # if dbPassword == payload["password"]:
+            users.signUp(payload["username"], payload["password"], addr[0])
+            self.updateTreeview()
+            print(hasUser)
+            conn.send(messageCreate(SIGNUP_SUCCESS, {"message": "Signup Success"}))
+            # else:
+            #     conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
+        else:
+            conn.send(messageCreate(SIGNUP_FAILED, {"message": "User already exists"}))
+
+    def clientGetDate(self, conn):
+        conn.send(messageCreate(GETDATE, {"date": db.getDate()}))
 
     def updateTreeview(self):
         self.clientTreeview.delete(*self.clientTreeview.get_children())
@@ -576,7 +616,6 @@ class ServerApp():
         frame.tkraise()
 
     def logIn(self, curFrame):
-
         username = curFrame.entry_username.get()
         password = curFrame.entry_password.get()
         if password == "":
@@ -661,11 +700,11 @@ class Home_Server(tk.Frame):
 # sThread.start()
 
 db = Database(DATABASE_FILENAME["user"], DATABASE_FILENAME["covid"])
-users = LoggedInUsers()
+users = Users()
 app = ServerApp()
 
 def __main__():
-    print(users.users)
+    # print(users.users)
     app.gui.mainloop()
 
 

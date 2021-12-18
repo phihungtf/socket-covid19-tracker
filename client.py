@@ -2,6 +2,7 @@ import json
 import socket
 import threading
 import os
+import locale
 
 import tkinter as tk
 from tkinter import ttk
@@ -18,17 +19,28 @@ DISCONNECT_MESSAGE = "Disconnect"
 SIGNUP = "SIGNUP"
 LOGIN = "LOGIN"
 LOGOUT = "LOGOUT"
-SEARCH = "SEARCH"
+TRACKER = "TRACKER"
+GETDATE = "GETDATE"
+GETCOUNTRY = "GETCOUNTRY"
+GETCOVIDDATA = "GETCOVIDDATA"
+LOGIN_SUCCESS = "LOGIN_SUCCESS"
+LOGIN_FAILED = "LOGIN_FAILED"
+SIGNUP_SUCCESS = "SIGNUP_SUCCESS"
+SIGNUP_FAILED = "SIGNUP_FAILED"
 
 FONT = ("Tahoma", 13)
 FONT_BOLD = ("Tahoma", 13, "bold")
 
 # GLOBAL socket initialize
 
+locale.setlocale(locale.LC_ALL, 'en_US')
 
 def messageCreate(type, payload):
 		return json.dumps({"type": type, "payload": payload}).encode(FORMAT)
 
+def formatNumber(number):
+    if number == None: return "N/A"
+    return locale.format_string("%d", int(number), grouping=True)
 
 class LinkLabel(tk.Label):
 		def __init__(self, master, text, fg, font, command):
@@ -56,104 +68,103 @@ class LinkLabel(tk.Label):
 
 
 class LogInFrame():
-    def __init__(self, master, signUpCommand):
-        self.isConnected = False
-        self.frame = tk.Frame(master)
-        # self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+		def __init__(self, master, showFrameCmd, connectCmd, logInCmd, disconnectCmd):
+				self.isConnected = False
+				self.frame = tk.Frame(master)
+				# self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-        tk.Label(self.frame, text="Connect to the server").place(x=10, y=10)
+				tk.Label(self.frame, text="Connect to the server").place(x=10, y=10)
 
-        self.ip = tk.StringVar()
-        self.ipEntry = tk.Entry(self.frame, textvariable=self.ip)
-        self.ipEntry.place(x=12, y=40, width=192)
-        self.ip.set(HOST)
+				self.ip = tk.StringVar()
+				self.ipEntry = tk.Entry(self.frame, textvariable=self.ip)
+				self.ipEntry.place(x=12, y=40, width=192)
+				self.ip.set(HOST)
 
-        self.port = tk.IntVar()
-        self.portEntry = tk.Entry(self.frame, textvariable=self.port)
-        self.portEntry.place(x=212, y=40, width=70)
-        self.port.set(PORT)
+				self.port = tk.IntVar()
+				self.portEntry = tk.Entry(self.frame, textvariable=self.port)
+				self.portEntry.place(x=212, y=40, width=70)
+				self.port.set(PORT)
 
-        self.connectButton = tk.Button(
-            self.frame, text="Connect", relief="ridge", command=self.connect)
-        self.connectButton.place(x=12, y=70, width=270)
+				self.connectButton = tk.Button(
+						self.frame, text="Connect", relief="ridge", command=self.connect)
+				self.connectButton.place(x=12, y=70, width=270)
 
-        tk.Label(self.frame, text="LOG IN", font=FONT_BOLD).place(x=112, y=115)
-        tk.Label(self.frame, text="Username").place(x=10, y=140)
+				tk.Label(self.frame, text="LOG IN", font=FONT_BOLD).place(x=112, y=115)
+				tk.Label(self.frame, text="Username").place(x=10, y=140)
 
-        self.usernameEntry = tk.Entry(self.frame)
-        self.usernameEntry.place(x=12, y=170, width=270)
+				self.usernameEntry = tk.Entry(self.frame)
+				self.usernameEntry.place(x=12, y=170, width=270)
 
-        tk.Label(self.frame, text="Password").place(x=10, y=200)
+				tk.Label(self.frame, text="Password").place(x=10, y=200)
 
-        self.passwordEntry = tk.Entry(self.frame, show="•")
-        self.passwordEntry.place(x=12, y=230, width=270)
+				self.passwordEntry = tk.Entry(self.frame, show="•")
+				self.passwordEntry.place(x=12, y=230, width=270)
 
-        self.logInButton = tk.Button(self.frame, text="Log In", relief="ridge", command=self.logIn)
-        self.logInButton.place(x=12, y=270, width=270)
+				self.logInButton = tk.Button(self.frame, text="Log In", relief="ridge", command=self.logIn)
+				self.logInButton.place(x=12, y=270, width=270)
 
-        tk.Label(self.frame, text="Don't have an account?",
-                  font=("Tahoma", 10)).place(x=45, y=315)
-        self.signUpButton = LinkLabel(self.frame, text="Sign Up!", fg="blue", font=("Tahoma", 10), command=signUpCommand)
-        self.signUpButton.place(x=185, y=315)
+				tk.Label(self.frame, text="Don't have an account?",	font=("Tahoma", 10)).place(x=45, y=315)
+				self.signUpButton = LinkLabel(self.frame, text="Sign Up!", fg="blue", font=("Tahoma", 10), command=lambda: showFrameCmd(SIGNUP))
+				self.signUpButton.place(x=185, y=315)
 
-        # self.disableLogIn()
+				self.disableLogIn()
+				self.connectCmd = connectCmd
+				self.logInCmd = logInCmd
+				self.disconnectCmd = disconnectCmd
+				self.showFrameCmd = showFrameCmd
 
 
-    def connect(self):
-        self.disableConnect()
-        self.enableLogIn()
-        self.isConnected = True
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.socket.connect((self.ip.get(), self.port.get()))
-        # print(self.socket)
+		def connect(self):
+				self.disableConnect()
+				if self.connectCmd(self.ip.get(), self.port.get()):
+					self.enableLogIn()
+				else:
+					self.enableConnect()
+				# print(self.socket)
 
-    def disconnect(self):
-        self.isConnected = False
-        self.enableConnect()
-        self.disableLogIn()
-        self.socket.close()
+		def disconnect(self):
+				self.enableConnect()
+				self.disconnectCmd()
+				self.disableLogIn()
 
-    def logIn(self):
-        username = self.usernameEntry.get()
-        password = self.passwordEntry.get()
-        if username == "" or password == "":
-            messagebox.showerror("Error", "Username or password is empty!")
-            return
+		def logIn(self):
+				self.disableLogIn()
+				username = self.usernameEntry.get()
+				password = self.passwordEntry.get()
+				if username == "" or password == "":
+						messagebox.showerror("Error", "Username or password is empty!")
+						return
 
-        self.socket.send(messageCreate(
-            LOGIN, {"username": username, "password": password}))
-        response = self.socket.recv(MAX_BYTES).decode(FORMAT)
-        response = json.loads(response)
-        if response["type"] == "LOGIN_SUCCESS":
-            messagebox.showinfo("Success", "Logged in successfully!")
-        else:
-            messagebox.showerror("Error", response["payload"]["message"])
+				if self.logInCmd(username, password):
+						self.showFrameCmd(TRACKER)
 
-    def disableLogIn(self):
-        self.logInButton.config(state="disabled")
-        self.usernameEntry.config(state="disabled")
-        self.passwordEntry.config(state="disabled")
-        self.signUpButton.disable()
+				self.enableLogIn()
 
-    def enableLogIn(self):
-        self.logInButton.config(state="normal")
-        self.usernameEntry.config(state="normal")
-        self.passwordEntry.config(state="normal")
-        self.signUpButton.enable()
+		def disableLogIn(self):
+				self.logInButton.config(state="disabled")
+				self.usernameEntry.config(state="disabled")
+				self.passwordEntry.config(state="disabled")
+				self.signUpButton.disable()
 
-    def disableConnect(self):
-        self.connectButton.config(text="Disconnect", command=self.disconnect)
-        self.ipEntry.config(state="disabled")
-        self.portEntry.config(state="disabled")
+		def enableLogIn(self):
+				self.logInButton.config(state="normal")
+				self.usernameEntry.config(state="normal")
+				self.passwordEntry.config(state="normal")
+				self.signUpButton.enable()
 
-    def enableConnect(self):
-        self.connectButton.config(text="Connect", command=self.connect)
-        self.ipEntry.config(state="normal")
-        self.portEntry.config(state="normal")
+		def disableConnect(self):
+				self.connectButton.config(text="Disconnect", command=self.disconnect)
+				self.ipEntry.config(state="disabled")
+				self.portEntry.config(state="disabled")
+
+		def enableConnect(self):
+				self.connectButton.config(text="Connect", command=self.connect)
+				self.ipEntry.config(state="normal")
+				self.portEntry.config(state="normal")
 
 
 class SignUpFrame():
-		def __init__(self, master, logInCommand):
+		def __init__(self, master, showFrameCmd, signUpCmd):
 				self.frame = tk.Frame(master)
 				# self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
@@ -168,83 +179,214 @@ class SignUpFrame():
 				self.passwordEntry = tk.Entry(self.frame, show="•")
 				self.passwordEntry.place(x=12, y=140, width=270)
 
-				tk.Label(self.frame, text="Confirm Password",
-								 font=FONT).place(x=10, y=170)
+				tk.Label(self.frame, text="Confirm Password", font=FONT).place(x=10, y=170)
 
 				self.confirmPasswordEntry = tk.Entry(self.frame, show="•")
 				self.confirmPasswordEntry.place(x=12, y=200, width=270)
 
-				self.signUpButton = tk.Button(
-						self.frame, text="Sign Up", font=FONT, relief="ridge")
+				self.signUpButton = tk.Button(self.frame, text="Sign Up", font=FONT, relief="ridge", command=self.signUp)
 				self.signUpButton.place(x=12, y=240, width=270)
 
-				tk.Label(self.frame, text="Already have an account?",
-								 font=("Tahoma", 10)).place(x=35, y=295)
-				self.logInButton = LinkLabel(self.frame, text="Log In!", fg="blue", font=(
-						"Tahoma", 10), command=logInCommand)
+				tk.Label(self.frame, text="Already have an account?", font=("Tahoma", 10)).place(x=35, y=295)
+				self.logInButton = LinkLabel(self.frame, text="Log In!", fg="blue", font=("Tahoma", 10), command=lambda: showFrameCmd(LOGIN))
 				self.logInButton.place(x=195, y=295)
 
+				self.signUpCmd = signUpCmd
+				self.showFrameCmd = showFrameCmd
+
 		def signUp(self):
-				pass
+				username = self.usernameEntry.get()
+				password = self.passwordEntry.get()
+				confirmPassword = self.confirmPasswordEntry.get()
+
+				if username == "" or password == "" or confirmPassword == "":
+						messagebox.showerror("Error", "Username or password is empty!")
+						return
+
+				if password != confirmPassword:
+						messagebox.showerror("Error", "Passwords do not match!")
+						return
+
+				self.signUpCmd(username, password)
+				
+class Card():
+    def __init__(self, master, pos, numberColor, labelColor, labelText):
+        self.valueLabel = tk.Label(master, text="000,000,000", background=numberColor[0], foreground=numberColor[1], justify="center", font=FONT_BOLD)
+        self.valueLabel.place(x=pos[0], y=pos[1], width=260, height=40)
+        self.label = tk.Label(master, text=labelText, background=labelColor[0], foreground=labelColor[1], justify="center")
+        self.label.place(x=pos[0], y=(pos[1] + 40), width=260)
+    
+    def setValue(self, value):
+        self.valueLabel.config(text=value)
+
+class TrackerFrame():
+		def __init__(self, master, showFrameCmd, getDateCmd, getCountryCmd, getCovidDataCmd):
+				self.frame = tk.Frame(master)
+				# self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+
+				tk.Label(self.frame, text="Stats Overview").place(x=10, y=10)
+
+				self.dateComboValue = tk.StringVar()
+				self.dateCombo = ttk.Combobox(self.frame, textvariable=self.dateComboValue)
+				self.dateCombo.place(x=10, y=40, width=280)
+				# self.dateCombo.bind('<<ComboboxSelected>>', self.onSelect)
+
+				self.countryComboValue = tk.StringVar()
+				self.countryCombo = ttk.Combobox(self.frame, textvariable=self.countryComboValue)
+				self.countryCombo.place(x=10, y=75, width=280)
+				# self.countryCombo.bind('<<ComboboxSelected>>', self.onSelect)
+
+				bgFrame = tk.Frame(self.frame, highlightbackground="#333", highlightthickness=1, bg="#aaa")
+				bgFrame.place(x=10, y=110, width=280, height=250)
+
+				self.casesCard = Card(bgFrame, (10, 10), ("#fff5f5", "#e53e3e"), ("#fed7d7", "#e53e3e"), "Cases")
+				self.recoveredCard = Card(bgFrame, (10, 90), ("#f0fff4", "#38a169"), ("#c6f6d5", "#38a169"), "Recovered")
+				self.deathsCard = Card(bgFrame, (10, 170), ("#edf2f7", "#718096"), ("#e2e8f0", "#718096"), "Deaths")
+
+				self.refreshButton = tk.Button(self.frame, text="Refresh", relief="ridge", command=self.reset)
+				self.refreshButton.place(x=10, y=370, width=280, height=30)
+
+				self.logOutButton = tk.Button(self.frame, text="Log Out", relief="ridge", command=lambda: showFrameCmd(LOGIN))
+				self.logOutButton.place(x=210, y=10, width=80, height=27)
+				
+				self.getDateCmd = getDateCmd
+				self.getCountryCmd = getCountryCmd
+				self.getCovidDataCmd = getCovidDataCmd
+
+		def reset(self):
+				self.setDate(self.getDate())
+		# 		self.setCountry(db.getCountry(self.getDate()))
+		# 		self.updateButton.config(text="Update Now", state="normal")
+		# 		self.onSelect()
+
+		def setDate(self, date):
+				if len(date) > 0:
+						self.dateCombo["values"] = date
+						self.dateCombo.current(len(date) - 1)
+
+		def getDate(self):
+				return self.getDateCmd()
+
+		# def setCountry(self, countries):
+		# 		if len(countries) > 0:
+		# 				self.countryCombo["values"] = countries
+		# 				self.countryCombo.current(0)
+
+		# def getCountry(self):
+		# 		return self.countryComboValue.get()
+
+		# def onSelect(self, event=None):
+		# 		date = self.getDate()
+		# 		country = self.getCountry()
+		# 		self.setCovidData(date, country)
+
+		# def setCovidData(self, date, country="World"):
+		# 		data = db.getCovidData(date, country)
+		# 		# print(data)
+		# 		self.casesCard.setValue(formatNumber(data["cases"]))
+		# 		self.recoveredCard.setValue(formatNumber(data["recovered"]))
+		# 		self.deathsCard.setValue(formatNumber(data["deaths"]))
+				
 
 
 class ClientApp(tk.Tk):
 		def __init__(self):
 				self.gui = tk.Tk()
 				self.gui.geometry('300x350')
-				self.gui.title('Covid-19 Tracker Server')
+				self.gui.title('Covid-19 Tracker Client')
 				self.gui.resizable(width=False, height=False)
 				self.gui.option_add("*Font", FONT)
 
+				self.socket = None
+				self.isConnected = False
+
 				self.frames = {
-						SIGNUP: SignUpFrame(self.gui, lambda: self.showFrame(LOGIN)),
-						LOGIN: LogInFrame(self.gui, lambda: self.showFrame(SIGNUP))
+						SIGNUP: SignUpFrame(self.gui, self.showFrame, self.signUp),
+						LOGIN: LogInFrame(self.gui, self.showFrame, self.connect, self.logIn, self.disconnect),
+						TRACKER: TrackerFrame(self.gui, self.showFrame, self.getDate, self.getCountry, self.getCovidData)
 				}
 
 				self.currentFrame = LOGIN
+				self.isLoggedIn = False
 				self.showFrame(self.currentFrame)
 
 		def showFrame(self, frame):
 				self.frames[self.currentFrame].frame.pack_forget()
 				self.currentFrame = frame
-				self.frames[self.currentFrame].frame.pack(
-						side=tk.TOP, fill=tk.BOTH, expand=True)
+				self.frames[self.currentFrame].frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
-				# if self.currentFrame == LOGIN:
-				#		 self.gui.geometry("300x280")
-				# elif self.currentFrame == SIGNUP:
-				#		 self.gui.geometry("300x340")
+				if self.currentFrame == LOGIN:
+						self.gui.geometry("300x350")
+				elif self.currentFrame == SIGNUP:
+						self.gui.geometry("300x340")
+				elif self.currentFrame == TRACKER:
+						self.gui.geometry("300x420")
 
-		def logIn(self, curFrame, client):
+		def connect(self, ip, port):
+				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 				try:
-						username = curFrame.entry_username.get()
-						password = curFrame.entry_password.get()
-
-						if username == '' or password == '':
-								curFrame.notice = "username and password cannot be empty"
-
-						msg = LOGIN
-						client.sendall(msg.encode(FORMAT))
-
-						client.sendall(username.encode(FORMAT))
-						client.recv(HEADER)
-
-						client.sendall(password.encode(FORMAT))
-
-						self.user = username
-
-						accepted = client.recv(HEADER).decode(FORMAT)
-						if accepted == "1":
-								self.showFrame(Home_Client)
-								curFrame.notice["text"] = ""
-
-						elif accepted == "2":
-								curFrame.notice["text"] = "Invalid username or password"
-						elif accepted == "0":
-								curFrame.notice["text"] = "User already logged in"
-
+						self.socket.connect((ip, port))
+						self.isConnected = True
+						return True
 				except:
-						print("Error: Server is not responding")
+						messagebox.showerror("Error", "Could not connect to server")
+						return False
+				# print(self.socket)
+
+		def disconnect(self):
+				self.isConnected = False
+				self.socket.close()
+
+		def logIn(self, username, password):
+				try:
+						self.socket.send(messageCreate(LOGIN, {"username": username, "password": password}))
+						response = self.socket.recv(MAX_BYTES).decode(FORMAT)
+						response = json.loads(response)
+						if response["type"] == LOGIN_SUCCESS:
+								# messagebox.showinfo("Success", "Logged in successfully!")
+								self.isLoggedIn = True
+								return True
+						else:
+								messagebox.showerror("Error", response["payload"]["message"])
+								return False
+				except:
+						messagebox.showerror("Error", "Server disconnected")
+						return False
+
+		def signUp(self, username, password):
+				try:
+						self.socket.send(messageCreate(SIGNUP, {"username": username, "password": password}))
+						response = self.socket.recv(MAX_BYTES).decode(FORMAT)
+						response = json.loads(response)
+						# print(response)
+						if response["type"] == SIGNUP_SUCCESS:
+								self.isLoggedIn = True
+								# messagebox.showinfo("Success", "Signed up successfully!")
+								return True
+						else:
+								messagebox.showerror("Error", response["payload"]["message"])
+								return False
+				except:
+						messagebox.showerror("Error", "Server disconnected")
+						return None
+
+		def getDate(self):
+				if self.isLoggedIn:
+					try:
+							self.socket.send(messageCreate(GETDATE, {}))
+							response = self.socket.recv(MAX_BYTES).decode(FORMAT)
+							response = json.loads(response)
+							print(response)
+							return response["payload"]["date"]
+					except:
+							messagebox.showerror("Error", "Server disconnected")
+				return []
+
+		def getCountry(self, date):
+				pass
+		
+		def getCovidData(self, date, country):
+				pass
 
 		def on_closing(self):
 				if messagebox.askokcancel("Quit", "Do you want to quit?"):
@@ -260,41 +402,6 @@ class ClientApp(tk.Tk):
 						except:
 								pass
 
-		def signUp(self, client, curFrame):
-				try:
-
-						username = curFrame.entry_username.get()
-						password = curFrame.entry_password.get()
-
-						msg = SIGNUP
-						client.sendall(msg.encode(FORMAT))
-
-						client.sendall(username.encode(FORMAT))
-						client.recv(HEADER)
-
-						client.sendall(password.encode(FORMAT))
-
-						accepted = client.recv(HEADER).decode(FORMAT)
-						if accepted == "True":
-								self.showFrame(Background_Client)
-								curFrame.notice["text"] = "Sign up success"
-						else:
-								curFrame.notice["text"] = "Username already exists"
-
-				except:
-						print("Error: Server is not responding")
-
-		def logOut(self, client, preFrame):
-				try:
-						username = preFrame.user
-						msg = LOGOUT
-						client.sendall(msg.encode(FORMAT))
-						client.sendall(username.encode(FORMAT))
-						accepted = client.recv(HEADER).decode(FORMAT)
-						if accepted == "True":
-								self.showFrame(Background_Client)
-				except:
-						print("Error: Server is not responding")
 
 
 class Background_Client(tk.Frame):
