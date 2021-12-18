@@ -229,12 +229,12 @@ class TrackerFrame():
 				self.dateComboValue = tk.StringVar()
 				self.dateCombo = ttk.Combobox(self.frame, textvariable=self.dateComboValue)
 				self.dateCombo.place(x=10, y=40, width=280)
-				# self.dateCombo.bind('<<ComboboxSelected>>', self.onSelect)
+				self.dateCombo.bind('<<ComboboxSelected>>', self.onSelect)
 
 				self.countryComboValue = tk.StringVar()
 				self.countryCombo = ttk.Combobox(self.frame, textvariable=self.countryComboValue)
 				self.countryCombo.place(x=10, y=75, width=280)
-				# self.countryCombo.bind('<<ComboboxSelected>>', self.onSelect)
+				self.countryCombo.bind('<<ComboboxSelected>>', self.onSelect)
 
 				bgFrame = tk.Frame(self.frame, highlightbackground="#333", highlightthickness=1, bg="#aaa")
 				bgFrame.place(x=10, y=110, width=280, height=250)
@@ -254,10 +254,10 @@ class TrackerFrame():
 				self.getCovidDataCmd = getCovidDataCmd
 
 		def reset(self):
-				self.setDate(self.getDate())
-		# 		self.setCountry(db.getCountry(self.getDate()))
+				self.setDate(self.getDateCmd())
+				self.setCountry(self.getCountryCmd(self.getDate()))
 		# 		self.updateButton.config(text="Update Now", state="normal")
-		# 		self.onSelect()
+				self.onSelect()
 
 		def setDate(self, date):
 				if len(date) > 0:
@@ -265,27 +265,27 @@ class TrackerFrame():
 						self.dateCombo.current(len(date) - 1)
 
 		def getDate(self):
-				return self.getDateCmd()
+				return self.dateComboValue.get()
 
-		# def setCountry(self, countries):
-		# 		if len(countries) > 0:
-		# 				self.countryCombo["values"] = countries
-		# 				self.countryCombo.current(0)
+		def setCountry(self, countries):
+				if len(countries) > 0:
+						self.countryCombo["values"] = countries
+						self.countryCombo.current(0)
 
-		# def getCountry(self):
-		# 		return self.countryComboValue.get()
+		def getCountry(self):
+				return self.countryComboValue.get()
 
-		# def onSelect(self, event=None):
-		# 		date = self.getDate()
-		# 		country = self.getCountry()
-		# 		self.setCovidData(date, country)
+		def onSelect(self, event=None):
+				date = self.getDate()
+				country = self.getCountry()
+				self.setCovidData(date, country)
 
-		# def setCovidData(self, date, country="World"):
-		# 		data = db.getCovidData(date, country)
-		# 		# print(data)
-		# 		self.casesCard.setValue(formatNumber(data["cases"]))
-		# 		self.recoveredCard.setValue(formatNumber(data["recovered"]))
-		# 		self.deathsCard.setValue(formatNumber(data["deaths"]))
+		def setCovidData(self, date, country="World"):
+				data = self.getCovidDataCmd(date, country)
+				# print(data)
+				self.casesCard.setValue(formatNumber(data["cases"]))
+				self.recoveredCard.setValue(formatNumber(data["recovered"]))
+				self.deathsCard.setValue(formatNumber(data["deaths"]))
 				
 
 
@@ -345,6 +345,7 @@ class ClientApp(tk.Tk):
 						if response["type"] == LOGIN_SUCCESS:
 								# messagebox.showinfo("Success", "Logged in successfully!")
 								self.isLoggedIn = True
+								self.frames[TRACKER].reset()
 								return True
 						else:
 								messagebox.showerror("Error", response["payload"]["message"])
@@ -376,17 +377,32 @@ class ClientApp(tk.Tk):
 							self.socket.send(messageCreate(GETDATE, {}))
 							response = self.socket.recv(MAX_BYTES).decode(FORMAT)
 							response = json.loads(response)
-							print(response)
 							return response["payload"]["date"]
 					except:
 							messagebox.showerror("Error", "Server disconnected")
 				return []
 
 		def getCountry(self, date):
-				pass
+				if self.isLoggedIn:
+					try:
+							self.socket.send(messageCreate(GETCOUNTRY, {"date": date}))
+							response = self.socket.recv(4 * MAX_BYTES).decode(FORMAT)
+							response = json.loads(response)
+							return response["payload"]["country"]
+					except:
+							messagebox.showerror("Error", "Server disconnected")
+				return []
 		
 		def getCovidData(self, date, country):
-				pass
+				if self.isLoggedIn:
+					try:
+							self.socket.send(messageCreate(GETCOVIDDATA, {"date": date, "country": country}))
+							response = self.socket.recv(MAX_BYTES).decode(FORMAT)
+							response = json.loads(response)
+							return response["payload"]["data"]
+					except:
+							messagebox.showerror("Error", "Server disconnected")
+				return {}
 
 		def on_closing(self):
 				if messagebox.askokcancel("Quit", "Do you want to quit?"):
