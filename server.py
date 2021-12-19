@@ -1,28 +1,19 @@
 import socket
 import threading
 import json
-import hashlib
-from tkinter import font
-from tkinter.constants import SW
 import requests
-import schedule
 import time
 import datetime
 import locale
 
 import tkinter as tk
+from tkinter import font
 from tkinter import ttk
-# from tkinter import messagebox
-# from tkinter import *
-# from tkinter.ttk import *
-# from typing import Sized
-# from PIL import Image, ImageTk
+from tkinter import messagebox
 
-# HOST = "127.0.0.1"
 PORT = 55555
 MAX_BYTES = 1024
 FORMAT = "utf-8"
-# ADDR = (HOST, PORT)
 DISCONNECT_MESSAGE = "Disconnect"
 
 SIGNUP = "SIGNUP"
@@ -33,9 +24,10 @@ GETCOUNTRY = "GETCOUNTRY"
 GETCOVIDDATA = "GETCOVIDDATA"
 LOGIN_SUCCESS = "LOGIN_SUCCESS"
 LOGIN_FAILED = "LOGIN_FAILED"
+LOGOUT_SUCCESS = "LOGOUT_SUCCESS"
+LOGOUT_FAILED = "LOGOUT_FAILED"
 SIGNUP_SUCCESS = "SIGNUP_SUCCESS"
 SIGNUP_FAILED = "SIGNUP_FAILED"
-
 
 COVID_API = "https://coronavirus-19-api.herokuapp.com/countries"
 
@@ -50,154 +42,6 @@ DATABASE_FILENAME = {
 }
 
 locale.setlocale(locale.LC_ALL, 'en_US')
-
-LiveAccount = []
-
-
-def addNewAccount(username, password):
-		password = str(hashlib.md5(password.strip().encode(FORMAT)).hexdigest())
-		newUser = {
-				'username': username,
-				'password': password
-		}
-		with open(DATABASE_FILENAME["user"], 'r') as fin:
-				data = json.load(fin)
-				fin.close()
-		data['users'].append(newUser)
-		with open(DATABASE_FILENAME["user"], 'w') as fout:
-				json.dump(data, fout, indent=4)
-				fout.close()
-
-
-def checkClientSignUp(username):
-		with open(DATABASE_FILENAME["user"], 'r') as fin:
-				data = json.load(fin)
-				fin.close()
-
-		for i in data["users"]:
-				if(i["username"].strip() == username.strip()):
-						return False
-		return True
-
-
-def clientSignUp(conn):
-		username = conn.recv(MAX_BYTES).decode(FORMAT)
-		conn.sendall(username.encode(FORMAT))
-
-		password = conn.recv(MAX_BYTES).decode(FORMAT)
-
-		username = username.strip()
-
-		accepted = checkClientSignUp(username)
-		print("accept:", accepted)
-		conn.sendall(str(accepted).encode(FORMAT))
-		if accepted:
-				addNewAccount(username, password)
-
-		print("End Sign Up\n")
-
-
-def checkLivedAccount(username):
-		for i in LiveAccount:
-				if i == username:
-						return True
-		return False
-
-
-def checkClientLogin(username, password):
-		password = str(hashlib.md5(password.strip().encode(FORMAT)).hexdigest())
-		if checkLivedAccount(username) == True:
-				return 0
-
-		with open(DATABASE_FILENAME["user"], 'r') as fin:
-				data = json.load(fin)
-				fin.close()
-
-		for i in data["users"]:
-				if(i["username"].strip() == username.strip() and i["password"] == password):
-						return 1
-		return 2
-
-
-def clientLogIn(conn):
-		username = conn.recv(MAX_BYTES).decode(FORMAT)
-		conn.sendall(username.encode(FORMAT))
-
-		password = conn.recv(MAX_BYTES).decode(FORMAT)
-
-		accepted = checkClientLogin(username, password)
-		if accepted == 1:
-				LiveAccount.append(username)
-
-		print("accepted:", accepted)
-		conn.sendall(str(accepted).encode(FORMAT))
-		print("End Log In\n")
-
-
-def clientSearch(conn):
-		with open(DATABASE_FILENAME["covid"], 'r') as f:
-				data = json.load(f)
-				f.close()
-
-		country = conn.recv(MAX_BYTES).decode(FORMAT)
-		info = []
-		key = datetime.datetime.now().strftime("%Y-%m-%d")
-		for i in data[key]:
-				if (i["country"] == country):
-						info.append("Country: " + str(i["country"]))
-						info.append("Cases: " + str(i["cases"]))
-						info.append("Deaths: " + str(i["deaths"]))
-						info.append("Recovered: " + str(i["recovered"]))
-						info = "\n".join(info)
-						conn.sendall(str(info).encode(FORMAT))
-
-
-def clientLogOut(conn):
-		username = conn.recv(MAX_BYTES).decode(FORMAT)
-		for i in LiveAccount:
-				if i == username:
-						LiveAccount.remove(i)
-						conn.sendall("True".encode(FORMAT))
-
-
-def handle_client(conn, addr):
-		print(f"[NEW CONNECTION] {addr} connected.")
-
-		while True:
-				msg = conn.recv(MAX_BYTES).decode(FORMAT)
-
-				if(msg == LOGIN):
-						clientLogIn(conn)
-				elif(msg == SIGNUP):
-						clientSignUp(conn)
-				elif(msg == SEARCH):
-						clientSearch(conn)
-				elif(msg == LOGOUT):
-						clientLogOut(conn)
-
-		conn.close()
-
-
-def startServer():
-		try:
-				print(HOST)
-				print("Waiting for Client")
-
-				while True:
-						conn, addr = s.accept()
-
-						clientThread = threading.Thread(
-								target=handle_client, args=(conn, addr))
-						# sThread.daemon = True
-						clientThread.start()
-
-		except KeyboardInterrupt:
-				print("Error")
-				s.close()
-		finally:
-				s.close()
-				print("end")
-
 
 def filterData(data):
 		result = {}
@@ -218,6 +62,14 @@ class Database():
 		def __init__(self, userFn, covidFn):
 				self.userFn = userFn
 				self.covidFn = covidFn
+
+		def updateCovidData(self, date, data):
+				with open(self.covidFn, 'r+') as f:
+						file_data = json.load(f)
+						file_data[date] = data
+						f.seek(0)
+						json.dump(file_data, f, indent=2)
+						f.close()
 
 		def getCovidData(self, date, country="World"):
 				with open(self.covidFn, 'r') as f:
@@ -286,19 +138,32 @@ class Users():
 				self.usernames = db.getAllUsername()
 				users = {}
 				for username in self.usernames:
-						users[username] = {"ipaddress": db.getUserIpAdress(username), "isLoggedIn": False}
+						users[username] = {"ipaddress": db.getUserIpAdress(username), "port": None, "isLoggedIn": False}
 				return users
 
-		def logIn(self, username, ipaddress):
+		def logIn(self, username, ipaddress, port):
 				self.users[username]["ipaddress"] = ipaddress
+				self.users[username]["port"] = port
 				self.users[username]["isLoggedIn"] = True
 				db.setUserIpAdress(username, ipaddress)
+		
+		def isLoggedIn(self, username):
+				return self.users[username]["isLoggedIn"]
 
 		def logOut(self, username):
 				self.users[username]["isLoggedIn"] = False
 
-		def signUp(self, username, password, ipaddress):
-				self.users[username] = {"ipaddress": ipaddress, "isLoggedIn": True}
+		def logOutIP(self, ipaddress, port):
+				for username in self.users:
+						if self.users[username]["ipaddress"] == ipaddress and self.users[username]["port"] == port:
+								self.users[username]["isLoggedIn"] = False
+
+		def logAllOut(self):
+				for username in self.users:
+						self.users[username]["isLoggedIn"] = False
+
+		def signUp(self, username, password, ipaddress, port):
+				self.users[username] = {"ipaddress": ipaddress, "port": port, "isLoggedIn": True}
 				db.addNewUser(username, password, ipaddress)
 
 		
@@ -411,16 +276,8 @@ class TabTracker(ttk.Frame):
 				r = requests.get(COVID_API)
 				data = r.json()
 				data = list(map(filterData, data))
-				key = datetime.datetime.now().strftime("%Y-%m-%d")
-				# print(key)
-				with open(DATABASE_FILENAME["covid"], 'r+') as file:
-						file_data = json.load(file)
-						# print(file_data)
-						file_data[key] = data
-						file.seek(0)
-						json.dump(file_data, file, indent=2)
-						file.close()
-
+				date = datetime.datetime.now().strftime("%Y-%m-%d")
+				db.updateCovidData(date, data)
 				self.reset()
 				print("Update Data")
 
@@ -457,14 +314,7 @@ class TabServer(ttk.Frame):
 				self.clientTreeview.heading("1", text ="Username", anchor='w')
 				self.clientTreeview.heading("2", text ="IP Address", anchor="w")
 
-				self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-				self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-				self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-				self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-				self.clientTreeview.insert("", "end", text="", values=("phihungtf", "1.2.3.4"))
-
 				self.client = {}
-				self.clientThread = {}
 				self.clientAddress = []
 				self.isStart = False
 				
@@ -484,6 +334,8 @@ class TabServer(ttk.Frame):
 				self.portEntry.config(state="disabled")
 
 		def stop(self):
+				users.logAllOut()
+				self.updateTreeview()
 				for client in self.client:
 						self.client[client].close()
 				self.socket.close()
@@ -491,7 +343,6 @@ class TabServer(ttk.Frame):
 				self.portEntry.config(state="normal")
 
 		def listen(self):
-				# print(self.socket)
 				self.socket.listen()
 				while self.isStart:
 						try:
@@ -499,9 +350,9 @@ class TabServer(ttk.Frame):
 								self.clientAddress.append(f'{addr[0]}:{addr[1]}')
 								self.client[self.clientAddress[-1]] = conn
 								print(self.clientAddress[-1] + ' connected')
-								self.clientThread[self.clientAddress[-1]] = threading.Thread(target=self.handleClient, args=(conn, addr))
-								self.clientThread[self.clientAddress[-1]].setDaemon(True)
-								self.clientThread[self.clientAddress[-1]].start()
+								clientThread = threading.Thread(target=self.handleClient, args=(conn, addr))
+								clientThread.setDaemon(True)
+								clientThread.start()
 						except:
 								print("Server stopped")
 								return
@@ -511,6 +362,8 @@ class TabServer(ttk.Frame):
 						try:
 								data = conn.recv(MAX_BYTES).decode(FORMAT)
 								if not data:
+										users.logOutIP(addr[0], addr[1])
+										self.updateTreeview()
 										self.clientAddress.remove(f'{addr[0]}:{addr[1]}')
 										conn.close()
 										print(f'{addr[0]}:{addr[1]} disconnected')
@@ -518,6 +371,8 @@ class TabServer(ttk.Frame):
 								msg = json.loads(data)
 								if msg["type"] == LOGIN:
 										self.clientLogIn(conn, addr, msg["payload"])
+								elif msg["type"] == LOGOUT:
+										self.clientLogOut(conn, msg["payload"])
 								elif msg["type"] == SIGNUP:
 										self.clientSignUp(conn, addr, msg["payload"])
 								elif msg["type"] == GETDATE:
@@ -527,35 +382,41 @@ class TabServer(ttk.Frame):
 								elif msg["type"] == GETCOVIDDATA:
 										self.clientGetCovidData(conn, msg["payload"])
 						except:
+								users.logOutIP(addr[0], addr[1])
+								self.clientAddress.remove(f'{addr[0]}:{addr[1]}')
+								self.updateTreeview()
 								print(f'{addr[0]}:{addr[1]} disconnected')
 								return
 
 		def clientLogIn(self, conn, addr, payload):
 				hasUser = db.hasUser(payload["username"])
-				if hasUser:
-						dbPassword = db.getPassword(payload["username"])
-						if dbPassword == payload["password"]:
-								users.logIn(payload["username"], addr[0])
-								self.updateTreeview()
-								conn.send(messageCreate(LOGIN_SUCCESS, {"message": "Login Success"}))
-						else:
-								conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
-				else:
+				if not hasUser:
 						conn.send(messageCreate(LOGIN_FAILED, {"message": "User not found"}))
+						return
+				if users.isLoggedIn(payload["username"]):
+						conn.send(messageCreate(LOGIN_FAILED, {"message": "User already logged in"}))
+						return
+				dbPassword = db.getPassword(payload["username"])
+				if dbPassword == payload["password"]:
+						users.logIn(payload["username"], addr[0], addr[1])
+						self.updateTreeview()
+						conn.send(messageCreate(LOGIN_SUCCESS, {"message": "Login Success"}))
+				else:
+						conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
+
+		def clientLogOut(self, conn, payload):
+				users.logOut(payload["username"])
+				self.updateTreeview()
+				conn.send(messageCreate(LOGOUT_SUCCESS, {"message": "Logout Success"}))
 
 		def clientSignUp(self, conn, addr, payload):
 				hasUser = db.hasUser(payload["username"])
-				if not hasUser:
-						# dbPassword = db.getPassword(payload["username"])
-						# if dbPassword == payload["password"]:
-						users.signUp(payload["username"], payload["password"], addr[0])
-						self.updateTreeview()
-						print(hasUser)
-						conn.send(messageCreate(SIGNUP_SUCCESS, {"message": "Signup Success"}))
-						# else:
-						#     conn.send(messageCreate(LOGIN_FAILED, {"message": "Wrong Password"}))
-				else:
+				if hasUser:
 						conn.send(messageCreate(SIGNUP_FAILED, {"message": "User already exists"}))
+						return
+				users.signUp(payload["username"], payload["password"], addr[0], addr[1])
+				self.updateTreeview()
+				conn.send(messageCreate(SIGNUP_SUCCESS, {"message": "Signup Success"}))
 
 		def clientGetDate(self, conn):
 				conn.send(messageCreate(GETDATE, {"date": db.getDate()}))
@@ -570,8 +431,7 @@ class TabServer(ttk.Frame):
 				self.clientTreeview.delete(*self.clientTreeview.get_children())
 				for username in users.users:
 						if users.users[username]["isLoggedIn"]:
-								self.clientTreeview.insert("", "end", text="", values=(username, users.users[username]["ipaddress"]))
-
+								self.clientTreeview.insert("", "end", text="", values=(username, f'{users.users[username]["ipaddress"]}:{users.users[username]["port"]}'))
 
 class ServerApp():
 		def __init__(self):
@@ -591,123 +451,6 @@ class ServerApp():
 				self.tabControl.add(self.tabTracker, text='Tracker')
 				self.tabControl.add(tabAbout, text='About')
 				self.tabControl.pack(expand=1, fill="both")
-
-				# self.title("Covid Information")
-				# self.geometry("1000x600")
-				# self.protocol("WM_DELETE_WINDOW", self.on_closing)
-				# self.resizable(width=False, height=False)
-				# self.option_add("*Font", FONT)
-
-				# container = tk.Frame(self)
-				# container.place(x=0, y=0)
-
-				# container.grid_rowconfigure(0, weight=1)
-				# container.grid_columnconfigure(0, weight=1)
-
-				# self.frames = {}
-				# for F in (Background_Server, Home_Server):
-				#     frame = F(container, self)
-
-				#     self.frames[F] = frame
-
-				#     frame.grid(row=0, column=0, sticky="nsew")
-
-				# self.showFrame(Background_Server)
-				# self.thread = thread
-
-				# self.showFrame(Home_Server)
-		def showFrame(self, container):
-				frame = self.frames[container]
-				if container == Home_Server:
-						self.geometry("500x500")
-
-				else:
-						self.geometry("1000x600")
-				frame.tkraise()
-
-		def logIn(self, curFrame):
-				username = curFrame.entry_username.get()
-				password = curFrame.entry_password.get()
-				if password == "":
-						curFrame.notice["text"] = "Password can not be empty !"
-						return
-
-				if username == "admin" and password == "1":
-						self.showFrame(Home_Server)
-						curFrame.notice["text"] = ""
-						self.thread.start()
-				else:
-						curFrame.notice["text"] = "Invalid username or password !"
-
-		def on_closing(self):
-				if messagebox.askokcancel("Quit", "Do you want to quit?"):
-						self.destroy()
-
-
-# class Background_Server(tk.Frame):
-#     def __init__(self, parent, control):
-#         tk.Frame.__init__(self, parent)
-
-#         self.img = Image.open("image/login_server.png")
-#         self.render = ImageTk.PhotoImage(self.img)
-
-#         canvas = Canvas(self, width=self.img.size[0], height=self.img.size[1])
-#         canvas.create_image(0, 0, anchor=NW, image=self.render)
-#         canvas.pack(fill=BOTH, expand=1)
-
-#         self.notice = tk.Label(self, text="", bg="#6184D6", fg='white')
-#         self.entry_username = tk.Entry(self, width=40, bg='white')
-#         self.entry_password = tk.Entry(self, width=40, bg='white', show="•")
-#         self.entry_username.place(x=607, y=260, height=40)
-#         self.entry_password.place(x=607, y=340, height=40)
-#         self.button_log = tk.Button(self, width=40, cursor="hand2", text="LOG IN",
-#                                     bg="#7B96D4", fg='floral white', command=lambda: control.logIn(self))
-#         self.button_log.place(x=607, y=410, height=40)
-#         self.notice.place(x=670, y=380)
-
-
-class Home_Server(tk.Frame):
-		def __init__(self, parent, control):
-				tk.Frame.__init__(self, parent)
-
-				self.img = Image.open("image/home_server.png")
-				self.render = ImageTk.PhotoImage(self.img)
-
-				canvas = Canvas(self, width=self.img.size[0], height=self.img.size[1])
-				canvas.create_image(0, 0, anchor=NW, image=self.render)
-				canvas.place(x=0, y=0)
-
-				self.data = tk.Listbox(self, height=15, width=40, bg='floral white',
-															 activestyle='dotbox', font="Helvetica", fg='#20639b')
-				self.data.place(x=30, y=120)
-				self.button_log = tk.Button(self, width=15, cursor="hand2", text="REFRESH",
-																		bg="#20639b", fg='floral white', command=self.Update_Client)
-				# self.button_back = tk.Button(self, width=15, cursor="hand2", text="LOG OUT", bg="#20639b",
-				#                              fg='floral white', command=lambda: control.showFrame(Background_Server))
-				self.button_log.place(x=90, y=430)
-				self.button_back.place(x=300, y=430)
-
-		def Update_Client(self):
-				self.data.delete(0, len(LiveAccount))
-				for i in range(len(LiveAccount)):
-						self.data.insert(i, LiveAccount[i])
-
-
-# def checkTimeUpdate():
-#     schedule.every(5).seconds.do(updateData)
-
-#     while True:
-#         schedule.run_pending()
-#         time.sleep(1)
-
-
-# sThreadUpdate = threading.Thread(target=checkTimeUpdate)
-# sThreadUpdate.daemon = True
-# sThreadUpdate.start()
-
-# sThread = threading.Thread(target=startServer)
-# sThread.daemon = True
-# sThread.start()
 
 db = Database(DATABASE_FILENAME["user"], DATABASE_FILENAME["covid"])
 users = Users()
