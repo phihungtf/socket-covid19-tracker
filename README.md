@@ -1,6 +1,6 @@
 # Python Socket Covid-19 Tracker
 
-A simple project from the Computer Networking course at HCMUS.
+A simple project from the Computer Networking course at [HCMUS](https://www.hcmus.edu.vn/).
 
 ## Usage
 
