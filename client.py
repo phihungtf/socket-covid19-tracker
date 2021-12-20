@@ -452,20 +452,6 @@ class ClientApp(tk.Tk):
 							self.frames[LOGIN].reset()
 							return False
 
-		def on_closing(self):
-				if messagebox.askokcancel("Quit", "Do you want to quit?"):
-						self.destroy()
-						try:
-								if(self.user == ''):
-										return
-								else:
-										username = self.user
-										msg = LOGOUT
-										client.sendall(msg.encode(FORMAT))
-										client.sendall(username.encode(FORMAT))
-						except:
-								pass
-
 def __main__():
 		app = ClientApp()
 		app.gui.mainloop()
