@@ -4,7 +4,7 @@ A simple project from the Computer Networking course at HCMUS.
 
 ## Usage
 
-Make sure you have [Python 3]("https://www.python.org/downloads/") and [Git]("https://git-scm.com/downloads") installed.
+Make sure you have [Python 3](https://www.python.org/downloads/) and [Git](https://git-scm.com/downloads) installed.
 
 Clone the Git Repository:
 
@@ -29,14 +29,14 @@ python client.py
 
 ## References
 
-The Covid-19 data is getting from [javieraviles' Covid-19 API]("https://github.com/javieraviles/covidAPI")
+The Covid-19 data is getting from [javieraviles' Covid-19 API](https://github.com/javieraviles/covidAPI)
 
 ## Author
 
 The project is developed by:
 
-- [20102488 - Thái Nguyễn Việt Hùng]("mailto://20120488@student.hcmus.edu.vn")
+- [20102488 - Thái Nguyễn Việt Hùng](mailto://20120488@student.hcmus.edu.vn)
 
-- [20102489 - Võ Phi Hùng]("mailto://20120489@student.hcmus.edu.vn")
+- [20102489 - Võ Phi Hùng](mailto://20120489@student.hcmus.edu.vn")
 
-- [20102496 - Nguyễn Cảnh Huy]("mailto://20120496@student.hcmus.edu.vn")
+- [20102496 - Nguyễn Cảnh Huy](mailto://20120496@student.hcmus.edu.vn)
