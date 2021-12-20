@@ -170,7 +170,6 @@ class LogInFrame():
 class SignUpFrame():
 		def __init__(self, master, showFrameCmd, signUpCmd):
 				self.frame = tk.Frame(master)
-				# self.frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
 
 				tk.Label(self.frame, text="SIGN UP", font=FONT_BOLD).place(x=105, y=10)
 				tk.Label(self.frame, text="Username", font=FONT).place(x=10, y=50)
@@ -311,8 +310,6 @@ class TrackerFrame():
 				self.recoveredCard.setValue(formatNumber(data["recovered"]))
 				self.deathsCard.setValue(formatNumber(data["deaths"]))
 				
-
-
 class ClientApp(tk.Tk):
 		def __init__(self):
 				self.gui = tk.Tk()
@@ -467,76 +464,6 @@ class ClientApp(tk.Tk):
 										client.sendall(username.encode(FORMAT))
 						except:
 								pass
-
-
-
-class Background_Client(tk.Frame):
-		def __init__(self, parent, control):
-				tk.Frame.__init__(self, parent)
-
-				self.img = Image.open("image/login_client.png")
-				self.render = ImageTk.PhotoImage(self.img)
-
-				canvas = Canvas(self, width=self.img.size[0], height=self.img.size[1])
-				canvas.create_image(0, 0, anchor=NW, image=self.render)
-				canvas.pack(fill=BOTH, expand=1)
-
-				self.notice = tk.Label(self, text="", bg="#6184D6", fg='red')
-				self.entry_username = tk.Entry(self, width=40, bg='white')
-				self.entry_password = tk.Entry(self, width=40, bg='white', show="*")
-				self.entry_username.place(x=607, y=260, height=40)
-				self.entry_password.place(x=607, y=340, height=40)
-				self.button_log = tk.Button(self, width=10, cursor="hand2", text="LOG IN",
-																		bg="#7B96D4", fg='floral white', command=lambda: control.logIn(self, client))
-				self.button_sign = tk.Button(self, width=10, cursor="hand2", text="SIGN UP",
-																		 bg="#7B96D4", fg='floral white', command=lambda: control.signUp(self, client))
-				self.button_log.place(x=607, y=410, height=40)
-				self.button_sign.place(x=810, y=410, height=40)
-				self.notice.place(x=670, y=380)
-
-
-class Home_Client(tk.Frame):
-		def __init__(self, parent, control):
-				tk.Frame.__init__(self, parent)
-
-				self.img = Image.open("image/home_client.png")
-				self.render = ImageTk.PhotoImage(self.img)
-
-				canvas = Canvas(self, width=self.img.size[0], height=self.img.size[1])
-				canvas.create_image(0, 0, anchor=NW, image=self.render)
-				canvas.place(x=0, y=0)
-
-				self.button_back = tk.Button(self, width=15, cursor="hand2", text="LOG OUT",
-																		 bg="#20639b", fg='floral white', command=lambda: control.logOut(client, control))
-				self.button_back.place(x=400, y=10)
-
-				self.entry_search = tk.Entry(self, width=30, bg='white')
-				self.button_search = tk.Button(self, width=10, cursor="hand2", text="SEARCH",
-																			 bg="#7B96D4", fg='floral white', command=lambda: self.Search())
-				self.entry_search.place(x=20, y=180, height=30)
-				self.button_search.place(x=250, y=180)
-
-				self.data = tk.Listbox(self, height=10, width=40, bg='floral white',
-															 activestyle='dotbox', font="Helvetica", fg='#20639b')
-				self.data.place(x=70, y=230)
-
-		def Search(self):
-				try:
-						msg = SEARCH
-						client.sendall(msg.encode(FORMAT))
-						country = self.entry_search.get()
-						client.sendall(country.encode(FORMAT))
-
-						info = client.recv(HEADER).decode(FORMAT)
-						show = info.split("\n")
-						self.data.delete(0, len(show))
-
-						for i in range(len(show)):
-								self.data.insert(i, show[i])
-
-				except:
-						print("Error: Server is not responding")
-
 
 def __main__():
 		app = ClientApp()

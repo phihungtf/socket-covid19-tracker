@@ -10,11 +10,14 @@ import tkinter as tk
 from tkinter import font
 from tkinter import ttk
 from tkinter import messagebox
+from PIL import ImageTk, Image
 
-PORT = 55555
+import webbrowser
+
 MAX_BYTES = 1024
 FORMAT = "utf-8"
-DISCONNECT_MESSAGE = "Disconnect"
+PORT = 55555
+IP = ''
 
 SIGNUP = "SIGNUP"
 LOGIN = "LOGIN"
@@ -166,8 +169,6 @@ class Users():
 				self.users[username] = {"ipaddress": ipaddress, "port": port, "isLoggedIn": True}
 				db.addNewUser(username, password, ipaddress)
 
-		
-
 class Card():
 		def __init__(self, master, pos, numberColor, labelColor, labelText):
 				self.valueLabel = tk.Label(master, text="000,000,000", background=numberColor[0], foreground=numberColor[1], justify="center", font=FONT_BOLD)
@@ -317,17 +318,21 @@ class TabServer(ttk.Frame):
 				self.client = {}
 				self.clientAddress = []
 				self.isStart = False
-				
 
 		def start(self):
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-				
-				self.socketThread = threading.Thread(target=self.listen)
-				self.socketThread.setDaemon(True)
 
-				self.socket.bind(('', self.port.get()))
+				# try:
+				self.socket.bind(('14.243.118.234', self.port.get()))
 				self.isStart = True
 				print("Server started on port: " + str(self.socket.getsockname()[1]))
+				print("IP: " + socket.gethostbyname(socket.gethostname()))
+				# except 
+				# 		messagebox.showerror("Error", f'Port {self.port.get()} is already in use.')
+				# 		return
+
+				self.socketThread = threading.Thread(target=self.listen)
+				self.socketThread.setDaemon(True)
 
 				self.socketThread.start()
 				self.startButton.config(text="Stop Server", command=self.stop)
@@ -433,6 +438,46 @@ class TabServer(ttk.Frame):
 						if users.users[username]["isLoggedIn"]:
 								self.clientTreeview.insert("", "end", text="", values=(username, f'{users.users[username]["ipaddress"]}:{users.users[username]["port"]}'))
 
+class TabAbout(ttk.Frame):
+		def __init__(self, master):
+				ttk.Frame.__init__(self, master)
+
+				self.vnuhcmLabel = tk.Label(self, text="VNU HCM", font=FONT_BOLD, foreground="#28306a", cursor="hand2")
+				self.vnuhcmLabel.place(x=40, y=10)
+				self.hcmusLabel = tk.Label(self, text="HCMUS", font=FONT_BOLD, foreground="#3c5182", cursor="hand2")
+				self.hcmusLabel.place(x=140, y=10)
+				self.fitLabel = tk.Label(self, text="FIT", font=FONT_BOLD, foreground="#0184cc", cursor="hand2")
+				self.fitLabel.place(x=220, y=10)
+				tk.Label(self, text="-", font=FONT_BOLD).place(x=127, y=10)
+				tk.Label(self, text="-", font=FONT_BOLD).place(x=208, y=10)
+				tk.Label(self, text="Computer Networking").place(relx=0.5, y=50, anchor="center")
+
+				self.logo = ImageTk.PhotoImage(Image.open("image/hcmus_logo.png").resize((200, 200), Image.ANTIALIAS))
+				self.logoLabel = tk.Label(self, image = self.logo, cursor="hand2")
+				self.logoLabel.place(relx=0.5, y=170, anchor="center")
+
+				tk.Label(self, text="The project is developed by:").place(relx=0.5, y=280, anchor="center")
+				self.std1Label = tk.Label(self, text="20120488 - Thái Nguyễn Việt Hùng", cursor="hand2", foreground="blue")
+				self.std1Label.place(x=15, y=300)
+				self.std2Label = tk.Label(self, text="20120489 - Võ Phi Hùng", cursor="hand2", foreground="blue")
+				self.std2Label.place(x=15, y=330)
+				self.std3Label = tk.Label(self, text="20120496 - Nguyễn Cảnh Huy", cursor="hand2", foreground="blue")
+				self.std3Label.place(x=15, y=360)
+				
+				tk.Label(self, text="More info is on the").place(x=12, y=390)
+				self.githubLabel = tk.Label(self, text="GitHub repository", cursor="hand2", foreground="blue", justify="left")
+				self.githubLabel.place(x=157, y=390)
+
+				self.vnuhcmLabel.bind("<Button-1>", lambda event: webbrowser.open("https://vnuhcm.edu.vn/"))
+				self.hcmusLabel.bind("<Button-1>", lambda event: webbrowser.open("https://hcmus.edu.vn/"))
+				self.fitLabel.bind("<Button-1>", lambda event: webbrowser.open("https://fit.hcmus.edu.vn/"))
+				self.logoLabel.bind("<Button-1>", lambda event: webbrowser.open("https://hcmus.edu.vn/"))
+
+				self.std1Label.bind("<Button-1>", lambda event: webbrowser.open("mailto://20120488@student.hcmus.edu.vn"))
+				self.std2Label.bind("<Button-1>", lambda event: webbrowser.open("mailto://20120489@student.hcmus.edu.vn"))
+				self.std3Label.bind("<Button-1>", lambda event: webbrowser.open("mailto://20120496@student.hcmus.edu.vn"))
+				self.githubLabel.bind("<Button-1>", lambda event: webbrowser.open("https://github.com/phihungtf/socket-covid19-tracker"))
+
 class ServerApp():
 		def __init__(self):
 				self.gui = tk.Tk()
@@ -445,11 +490,11 @@ class ServerApp():
 
 				self.tabServer = TabServer(self.tabControl)
 				self.tabTracker = TabTracker(self.tabControl)
-				tabAbout = ttk.Frame(self.tabControl)
+				self.tabAbout = TabAbout(self.tabControl)
 
 				self.tabControl.add(self.tabServer, text='Server')
 				self.tabControl.add(self.tabTracker, text='Tracker')
-				self.tabControl.add(tabAbout, text='About')
+				self.tabControl.add(self.tabAbout, text='About')
 				self.tabControl.pack(expand=1, fill="both")
 
 db = Database(DATABASE_FILENAME["user"], DATABASE_FILENAME["covid"])
@@ -457,9 +502,7 @@ users = Users()
 app = ServerApp()
 
 def __main__():
-		# print(users.users)
 		app.gui.mainloop()
-
 
 if __name__ == '__main__':
 		__main__()
