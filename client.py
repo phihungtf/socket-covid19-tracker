@@ -315,6 +315,7 @@ class ClientApp(tk.Tk):
 				self.gui = tk.Tk()
 				self.gui.geometry('300x350')
 				self.gui.title('Covid-19 Tracker Client')
+				self.gui.iconbitmap('images/client.ico')
 				self.gui.resizable(width=False, height=False)
 				self.gui.option_add("*Font", FONT)
 

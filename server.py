@@ -322,14 +322,14 @@ class TabServer(ttk.Frame):
 		def start(self):
 				self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-				# try:
-				self.socket.bind(('14.243.118.234', self.port.get()))
-				self.isStart = True
-				print("Server started on port: " + str(self.socket.getsockname()[1]))
-				print("IP: " + socket.gethostbyname(socket.gethostname()))
-				# except 
-				# 		messagebox.showerror("Error", f'Port {self.port.get()} is already in use.')
-				# 		return
+				try:
+						self.socket.bind((IP, self.port.get()))
+						self.isStart = True
+						print("Server started on port: " + str(self.socket.getsockname()[1]))
+						print("IP: " + socket.gethostbyname(socket.gethostname()))
+				except:
+						messagebox.showerror("Error", f'Port {self.port.get()} is already in use.')
+						return
 
 				self.socketThread = threading.Thread(target=self.listen)
 				self.socketThread.setDaemon(True)
@@ -452,7 +452,7 @@ class TabAbout(ttk.Frame):
 				tk.Label(self, text="-", font=FONT_BOLD).place(x=208, y=10)
 				tk.Label(self, text="Computer Networking").place(relx=0.5, y=50, anchor="center")
 
-				self.logo = ImageTk.PhotoImage(Image.open("image/hcmus_logo.png").resize((200, 200), Image.ANTIALIAS))
+				self.logo = ImageTk.PhotoImage(Image.open("images/hcmus_logo.png").resize((200, 200), Image.ANTIALIAS))
 				self.logoLabel = tk.Label(self, image = self.logo, cursor="hand2")
 				self.logoLabel.place(relx=0.5, y=170, anchor="center")
 
@@ -483,6 +483,7 @@ class ServerApp():
 				self.gui = tk.Tk()
 				self.gui.geometry('300x460')
 				self.gui.title('Covid-19 Tracker Server')
+				self.gui.iconbitmap('images/server.ico')
 				self.gui.resizable(width=False, height=False)
 				self.gui.option_add("*Font", FONT)
 
