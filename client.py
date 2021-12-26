@@ -1,6 +1,5 @@
 import json
 import socket
-import threading
 import locale
 import hashlib
 
