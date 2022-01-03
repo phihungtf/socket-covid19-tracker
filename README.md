@@ -23,8 +23,8 @@ pip3 install -r requirements.txt
 Then you can run the server and client by typing:
 
 ```
-python server.py
-python client.py
+python3 server.py
+python3 client.py
 ```
 
 ## References
